@@ -1,0 +1,11 @@
+{
+  "name": "github-journal",
+  "version": "1.0.0",
+  "description": "A simple public journal hosted on GitHub Pages",
+  "scripts": {
+    "build": "node entries.js",
+    "start": "npx serve ."
+  },
+  "author": "",
+  "license": "ISC"
+}

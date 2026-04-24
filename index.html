@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Journal</title>
+    <link rel="stylesheet" href="styles/docs.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="docs-redesign">
+    <div class="docs-layout">
+      <aside class="sidebar-left">
+        <a href="index.html" class="sidebar-brand">Journal</a>
+
+        <div class="sidebar-nav-section">
+          <h4 class="sidebar-nav-title">Entries</h4>
+          <ul class="sidebar-nav-list" id="entries-nav-list">
+            <!-- Entries will be loaded from entries.json -->
+            <li class="sidebar-nav-item">Loading entries...</li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="docs-main">
+        <header class="docs-topbar">
+          <button class="theme-toggle" aria-label="Toggle dark mode">
+            <svg class="topbar-icon" viewBox="0 0 24 24">
+              <path
+                d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"
+              />
+            </svg>
+          </button>
+        </header>
+
+        <div class="docs-content-wrapper">
+          <article id="markdown-viewer" class="markdown-body"></article>
+
+          <aside class="sidebar-right">
+            <h4 class="toc-title">On this page</h4>
+            <ul id="toc-list" class="toc-list"></ul>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const viewer = document.getElementById('markdown-viewer');
+        const tocList = document.getElementById('toc-list');
+        const entriesNavList = document.getElementById('entries-nav-list');
+        const DOCS_BASE_PATH = 'entries/';
+
+        const renderer = new marked.Renderer();
+
+        // Support both old and new marked versions for heading renderer
+        renderer.heading = function (argsOrText, levelOrUndefined) {
+          let text = '';
+          let level = 1;
+
+          if (typeof argsOrText === 'object') {
+            text = argsOrText.text || '';
+            level = argsOrText.depth || 1;
+          } else {
+            text = argsOrText;
+            level = levelOrUndefined || 1;
+          }
+
+          const slug = text
+            .toLowerCase()
+            .replace(/[^\w]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          return `<h${level} id="${slug}">${text}</h${level}>`;
+        };
+
+        marked.setOptions({
+          renderer: renderer,
+          highlight: function (code, lang) {
+            const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+            return hljs.highlight(code, { language }).value;
+          },
+          langPrefix: 'hljs language-',
+          gfm: true,
+          breaks: true,
+        });
+
+        function generateTOC() {
+          tocList.innerHTML = '';
+          const headings = viewer.querySelectorAll('h2, h3');
+
+          if (headings.length === 0) {
+            tocList.innerHTML =
+              '<li class="toc-item"><span class="toc-link">No sections</span></li>';
+            return;
+          }
+
+          headings.forEach((heading) => {
+            const li = document.createElement('li');
+            li.className = 'toc-item';
+            if (heading.tagName === 'H3') {
+              li.style.paddingLeft = '1rem';
+            }
+
+            const a = document.createElement('a');
+            a.className = 'toc-link';
+            a.href = `#${heading.id}`;
+            a.textContent = heading.textContent;
+
+            li.appendChild(a);
+            tocList.appendChild(li);
+          });
+        }
+
+        function loadMarkdown(filename) {
+          if (window.location.protocol === 'file:') {
+            viewer.innerHTML = `
+              <div class="error-state">
+                <h2>Local File Access Blocked</h2>
+                <p>Browsers block <code>fetch</code> requests when files are opened directly via <code>file://</code>.</p>
+                <p>Please run a local server using: <br><code>npm start</code> or <code>npx serve .</code></p>
+              </div>`;
+            return;
+          }
+
+          if (!filename) filename = 'README';
+          viewer.innerHTML = '<p>Loading...</p>';
+          
+          const path = `${DOCS_BASE_PATH}${filename}.md`;
+          console.log('Fetching:', path);
+
+          fetch(path)
+            .then((response) => {
+              if (!response.ok) throw new Error(`File not found: ${path}`);
+              return response.text();
+            })
+            .then((text) => {
+              // Ensure we use the correct parse method
+              const html = typeof marked.parse === 'function' ? marked.parse(text) : marked(text);
+              viewer.innerHTML = html;
+
+              viewer.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+              });
+
+              generateTOC();
+
+              document.querySelectorAll('.sidebar-nav-link').forEach((link) => {
+                if (link.dataset.file === filename) {
+                  link.classList.add('active');
+                } else {
+                  link.classList.remove('active');
+                }
+              });
+
+              window.scrollTo(0, 0);
+            })
+            .catch((err) => {
+              console.error(err);
+              viewer.innerHTML = `
+                <div class="error-state">
+                  <h2>Entry not found</h2>
+                  <p>Could not load <strong>${filename}.md</strong>.</p>
+                  <p><small>${err.message}</small></p>
+                </div>`;
+            });
+        }
+
+        function loadEntries() {
+          fetch('entries.json')
+            .then(res => res.json())
+            .then(entries => {
+              entriesNavList.innerHTML = '';
+              entries.forEach(entry => {
+                const li = document.createElement('li');
+                li.className = 'sidebar-nav-item';
+                const name = entry.replace('.md', '');
+                const label = name === 'README' ? 'About' : name.replace(/-/g, ' ');
+                li.innerHTML = `<a href="?file=${name}" class="sidebar-nav-link" data-file="${name}">${label}</a>`;
+                entriesNavList.appendChild(li);
+              });
+              
+              // Set active state for the current file
+              const params = new URLSearchParams(window.location.search);
+              const currentFile = params.get('file') || 'README';
+              document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+                if (link.dataset.file === currentFile) link.classList.add('active');
+              });
+            })
+            .catch(err => {
+              console.error('Error loading entries.json:', err);
+              entriesNavList.innerHTML = '<li class="sidebar-nav-item">Error loading entries</li>';
+            });
+        }
+
+        // Handle navigation clicks
+        document.body.addEventListener('click', (e) => {
+          if (e.target.classList.contains('sidebar-nav-link')) {
+            e.preventDefault();
+            const filename = e.target.dataset.file;
+            window.history.pushState({}, '', `?file=${filename}`);
+            loadMarkdown(filename);
+          }
+        });
+
+        window.addEventListener('popstate', () => {
+          const params = new URLSearchParams(window.location.search);
+          loadMarkdown(params.get('file') || 'README');
+        });
+
+        // Initial load
+        loadEntries();
+        const urlParams = new URLSearchParams(window.location.search);
+        loadMarkdown(urlParams.get('file') || 'README');
+
+        window.addEventListener('scroll', () => {
+          const headings = viewer.querySelectorAll('h2, h3');
+          let activeId = '';
+
+          headings.forEach((heading) => {
+            const top = heading.getBoundingClientRect().top;
+            if (top < 100) {
+              activeId = heading.id;
+            }
+          });
+
+          document.querySelectorAll('.toc-link').forEach((link) => {
+            if (link.getAttribute('href') === `#${activeId}`) {
+              link.classList.add('active');
+            } else {
+              link.classList.remove('active');
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -27,7 +27,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Prepare Content
+      - name: Generate Entries Manifest
         run: npm run build
 
       - name: Upload artifact
