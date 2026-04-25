@@ -14,7 +14,7 @@ try {
       return a.localeCompare(b);
     });
 
-  fs.writeFileSync(outputFile, JSON.stringify(files, null, 2));
+  fs.writeFileSync(outputFile, JSON.stringify(files, null, 3));
   console.log(`Successfully generated entries.json with ${files.length} entries.`);
 } catch (err) {
   console.error('Error generating entries.json:', err);
