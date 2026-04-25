@@ -4,7 +4,11 @@ on:
   push:
     branches: ['master']
     paths:
-      - "./"
+      - "entries/**"
+      - "*.html"
+      - "*.js"
+      - "styles/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 permissions:

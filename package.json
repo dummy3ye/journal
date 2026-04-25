@@ -4,7 +4,7 @@
   "description": "A simple public journal hosted on GitHub Pages",
   "scripts": {
     "build": "node entries.js",
-    "start": "npx serve ."
+    "start": "npm run build && npx serve ."
   },
   "author": "",
   "license": "ISC"
